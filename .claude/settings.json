@@ -10,6 +10,8 @@
       "Bash(./scripts/build-app.sh:*)",
       "Bash(./scripts/package-dmg.sh:*)",
       "Bash(./scripts/test-cli.sh:*)",
+      "Bash(./scripts/test-skill-contract.sh:*)",
+      "Bash(./scripts/smoke-ui.sh:*)",
       "Bash(carapace:*)"
     ]
   }

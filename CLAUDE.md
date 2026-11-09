@@ -4,7 +4,7 @@
 - 测试和调试必须使用临时库与临时偏好域，避免碰真实持仓：
   `export CARAPACE_DB=/tmp/carapace-test/store.sqlite3`
   `export CARAPACE_DEFAULTS_SUITE=com.ryan.carapace.test`
-- 构建与验收：`swift build`、`swift run CarapaceCoreTests`、`swift run carapace --selftest`、`./scripts/test-cli.sh`、`./scripts/smoke-ui.sh`。
+- 构建与验收：`swift build`、`swift run CarapaceCoreTests`、`swift run carapace --selftest`、`./scripts/test-cli.sh`、`./scripts/test-skill-contract.sh`、`./scripts/smoke-ui.sh`；改 skill 文档示例或 CLI 返回结构时须跑后三个脚本。
 - 数据库 schema v8；所有写入只经 `Store`（WAL + `BEGIN IMMEDIATE`），不要手写 SQL 改真实库。
 - 空库不写入示例数据；不要把个人持仓、成本、账户名写进源码、文档或测试夹具。
 - 发版：只改 `Resources/Info.plist` 的 `CFBundleShortVersionString` / `CFBundleVersion`，然后 `./scripts/package-dmg.sh`、`./scripts/publish-release.sh`；App 与 CLI 都从 Info.plist 读版本。

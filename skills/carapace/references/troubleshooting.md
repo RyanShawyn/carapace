@@ -2,18 +2,17 @@
 
 ## 找不到 carapace
 
-按顺序检查：
+运行随 skill 分发的脚本，它会输出第一个可执行路径：
 
 ```bash
-echo "$CARAPACE_BIN"
-command -v carapace
-ls -l /Applications/Carapace.app/Contents/Helpers/carapace
-ls -l ~/Applications/Carapace.app/Contents/Helpers/carapace
-ls -l ./build/Carapace.app/Contents/Helpers/carapace
-ls -l ./.build/debug/carapace-cli
+./scripts/find-carapace.sh
 ```
 
-安装 CLI 软链：
+脚本依次检查 `$CARAPACE_BIN`、PATH、`/Applications/Carapace.app`、
+`~/Applications/Carapace.app`、`./build/Carapace.app/Contents/Helpers/carapace`、
+`./.build/debug/carapace-cli`。找不到时退出 1。
+
+需要安装 CLI 软链：
 
 ```bash
 ./scripts/install-skill.sh --personal --bin ~/.local/bin
@@ -27,12 +26,20 @@ export CARAPACE_BIN=/Applications/Carapace.app/Contents/Helpers/carapace
 
 ## doctor 返回 healthy=false
 
-看 `data.checks`：
+先看 `data.healthy` 和 `data.checks`；`meta` 里没有 `healthy`：
 
-- `database.ok=false`：数据库路径不存在或没有权限。确认 `~/Library/Application Support/Carapace/store.sqlite3` 存在，目录 0700、文件 0600。
-- `schema.ok=false`：数据库版本不是 8。先启动新版 App 完成迁移；迁移前会自动生成 `store.sqlite3.7-backup`。
-- `permissions.ok=false`：文件权限不对，执行 `chmod 600 <db>`。
-- `ai_keys.ok=false`：还有旧 AI Key，执行 `carapace maintenance purge-ai-keys --yes`。
+- `database.ok=false`：数据库文件路径不可访问。检查 `data.db` 指向的目录权限；
+  `Store` 会自动创建目录和 v8 空库，但目录本身必须可写。
+- `schema.ok=false`：数据库版本不是 8。`Store` 在迁移前会生成
+  `<db>.<旧版本>-backup`；确认备份存在后再启动新版 App 完成迁移。
+- `permissions.ok=false`：权限不是 0600，执行 `chmod 600 <data.db>`。
+- `ai_keys.ok=false`：`healthy` 不受遗留 AI Key 影响，但应清理；执行
+  `carapace maintenance purge-ai-keys --yes --json`，先取得用户明确确认。
+- `app_running.ok=true`：这条检查是提示，不是失败；首次升级前退出 App。
+
+成功响应的版本字段在 `data.api_version`、`data.app_version`、
+`data.schema_version`，也在 `meta.api_version`、`meta.app_version`、
+`meta.schema_version`；不要读 `meta.healthy`。
 
 ## 数据库被占用 / database is locked
 
@@ -42,26 +49,31 @@ export CARAPACE_BIN=/Applications/Carapace.app/Contents/Helpers/carapace
 
 ## 版本冲突 CONFLICT
 
-计划版本已经变化：
+计划或草稿的版本已经变化：
 
-1. `carapace plans get --position N --json` 重新读取 `version`。
+1. `carapace plans get --position N --json` 重新读取 `data.version`。
 2. 重新生成或调整 levels。
-3. 用新的 `--if-version` 再提交。
+3. 用新的 `--if-version` 提交计划；草稿用新的 `--base-version` 重新创建。
+4. 不要直接用 `drafts apply` 强行覆盖，先让用户重新确认。
 
 ## 写操作重复
 
-所有写命令都应带 `--request-id`。重试时使用同一个 ID，CLI 会返回第一次的结果，不会重复记账。
+所有经过 `performWrite` 的写命令都应带 `--request-id`。重试时使用同一个 ID，
+CLI 会返回第一次的结果，不会重复记账。预览与正式执行也用同一个 ID。
+`settings set`、`backup`、`export-csv`、`verify` 不经过这个包装，不要假设它们幂等。
 
 ## 行情 QUOTE 错误
 
 - 检查网络和代理。
-- 港股需要 `--market hk`，必要时显式给 `--quote-key 116.00700`。
-- 场外基金用 `--source fund`。
+- 用 `search --keyword TEXT --json` 确认 `instrumentMarket`、`source`、`unit` 和 `quoteKey`。
+- 港股需要 `--market hk`；`quotes get` 默认用 `116.<code>`，必要时显式给 `--quote-key`。
+- 美股会探测 `105|106|107.<symbol>`；指数、基金和黄金按各自来源使用对应的 key。
+- 招行积存金（`cmb`）和场外基金（`fund`）不做跨源回退；基金净值盘中不变属正常。
 - 非交易时间可能只有收盘价，回答时说明 `meta.as_of`。
 
 ## App 没有刷新
 
-- CLI 写成功会自动发 Darwin 通知；App 打开时会在 1 秒内刷新。
+- 经 `performWrite` 的写命令成功后会发 Darwin 通知；`settings set` 也会通知 App。
 - 如果没刷新，切到别的页面再回来，或重启 App。
 - `--no-notify` 会关闭自动刷新。
 
@@ -106,4 +118,4 @@ rm -rf /tmp/carapace-test
 defaults delete com.ryan.carapace.test 2>/dev/null || true
 ```
 
-不要在临时库里操作真实持仓；如果已经在真实库创建了测试数据，用 `positions clear` / `watch remove` 删除，或从迁移前备份恢复。
+不要把 `/tmp` 库的数据复制到真实库；清理测试数据前先确认 `data.db` 指向临时库。
