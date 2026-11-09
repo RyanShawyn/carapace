@@ -69,6 +69,7 @@ struct AutomationSettingsView: View {
 
 struct NotificationSettingsView: View {
     @ObservedObject var state: AppState
+    @State private var authStatus = "检查中…"
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -85,7 +86,11 @@ struct NotificationSettingsView: View {
             CardBox {
                 HStack {
                     Text("系统通知权限").font(.system(size: 11.5))
+                    Text(authStatus).font(.system(size: 11)).foregroundStyle(Theme.muted)
                     Spacer()
+                    Button("打开系统设置") {
+                        NotificationService.shared.openSystemSettings()
+                    }.controlSize(.small)
                     Button("发送测试") {
                         guard state.systemNotifications else {
                             state.toastText = "先打开「系统通知」"
@@ -100,10 +105,20 @@ struct NotificationSettingsView: View {
                 }
             }
             CardBox {
-                Text("当前会发送：价格穿越、观察关注价、停止买入档、复盘到期、行情异常、仓位超限、计划草稿待确认和更新提示。")
-                    .font(.system(size: 10.5)).foregroundStyle(Theme.muted)
-                    .fixedSize(horizontal: false, vertical: true)
+                VStack(alignment: .leading, spacing: 9) {
+                    Text("分类开关").font(.system(size: 12, weight: .semibold))
+                    ForEach(NotifyCategory.allCases, id: \.rawValue) { category in
+                        Toggle(category.title, isOn: state.notifyBinding(category))
+                    }
+                    Text("关闭某一类后，该类提醒不再写入通知列表，也不再弹系统通知；已经产生的提醒保留。开关只影响之后新触发的提醒，菜单栏和总览里的提醒状态不受影响。")
+                        .font(.system(size: 10)).foregroundStyle(Theme.faint)
+                        .fixedSize(horizontal: false, vertical: true)
+                }.font(.system(size: 11.5))
             }
+        }
+        .task { authStatus = await NotificationService.shared.authorizationDescription() }
+        .onChange(of: state.systemNotifications) { _ in
+            Task { authStatus = await NotificationService.shared.authorizationDescription() }
         }
     }
 }

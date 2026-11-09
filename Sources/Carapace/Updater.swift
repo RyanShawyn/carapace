@@ -318,7 +318,8 @@ final class UpdateController: ObservableObject {
             id: "update-available-\(release.version)",
             title: "Carapace \(release.version) 可用",
             body: autoUpdate ? "10 秒后自动更新，打开 App 可以取消。" : "打开 App，在更新横幅里确认。",
-            enabled: CarapaceDefaults.store.object(forKey: "systemNotifications") as? Bool ?? false)
+            enabled: CarapaceDefaults.notifyEnabled(.update)
+                && (CarapaceDefaults.store.object(forKey: "systemNotifications") as? Bool ?? false))
     }
 
     // MARK: - Network
@@ -480,7 +481,8 @@ final class UpdateController: ObservableObject {
                 id: "update-\(release.version)",
                 title: "Carapace 正在更新到 \(release.version)",
                 body: relaunchAfterUpdate ? "安装完成后会自动重启。" : "安装完成后请手动打开。",
-                enabled: CarapaceDefaults.store.object(forKey: "systemNotifications") as? Bool ?? false)
+                enabled: CarapaceDefaults.notifyEnabled(.update)
+                    && (CarapaceDefaults.store.object(forKey: "systemNotifications") as? Bool ?? false))
             CarapaceDefaults.store.set(release.version, forKey: "updatedToVersion")
 
             try await Task.sleep(nanoseconds: 500_000_000)

@@ -53,10 +53,17 @@ extension AppState {
     }
 
     private func notifyPendingDrafts() {
+        guard CarapaceDefaults.notifyEnabled(.draft) else {
+            notifications = (try? store.notifications(limit: 200)) ?? notifications
+            return
+        }
         for draft in drafts where draft.status == "pending" {
+            let alertId = "draft:\(draft.id)"
+            // 读过就不再反复提醒；草稿被重新生成时会换成新的 id。
+            guard (try? store.hasNotification(alertId: alertId)) == false else { continue }
             let name = draft.positionId.flatMap { anyPosition(id: $0)?.name } ?? "组合"
             try? store.addNotificationIfNeeded(
-                alertId: "draft:\(draft.id)", kind: "draft",
+                alertId: alertId, kind: "draft",
                 title: "计划草稿待确认",
                 body: "\(name) · 基准 v\(draft.baseVersion ?? 0)",
                 route: draft.positionId.map { "position:\($0)" })

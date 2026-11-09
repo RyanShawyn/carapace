@@ -1,4 +1,5 @@
 import Foundation
+import AppKit
 import UserNotifications
 import CarapaceCore
 
@@ -21,6 +22,22 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
     func requestAuthorization() async {
         guard let center else { return }
         _ = try? await center.requestAuthorization(options: [.alert, .sound])
+    }
+
+    func authorizationDescription() async -> String {
+        guard let center else { return "不可用（未以 .app 运行）" }
+        switch await center.notificationSettings().authorizationStatus {
+        case .authorized, .provisional: return "已允许"
+        case .denied: return "已被系统拒绝"
+        case .notDetermined: return "尚未请求"
+        @unknown default: return "未知"
+        }
+    }
+
+    func openSystemSettings() {
+        guard let url = URL(string:
+            "x-apple.systempreferences:com.apple.Notifications-Settings.extension") else { return }
+        NSWorkspace.shared.open(url)
     }
 
     func send(id: String, title: String, body: String, enabled: Bool, critical: Bool = false) {

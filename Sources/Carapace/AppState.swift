@@ -131,6 +131,10 @@ final class AppState: ObservableObject {
             if systemNotifications { Task { await NotificationService.shared.requestAuthorization() } }
         }
     }
+    /// 分类通知开关，缺省为开；只影响之后新触发的提醒。
+    @Published var notifyCategories: [String: Bool] {
+        didSet { CarapaceDefaults.store.set(notifyCategories, forKey: "notifyCategories") }
+    }
     @Published var backgroundCheck: Bool {
         didSet {
             CarapaceDefaults.store.set(backgroundCheck, forKey: "backgroundCheck")
@@ -273,6 +277,7 @@ final class AppState: ObservableObject {
         let defaults = CarapaceDefaults.store
         muted = defaults.bool(forKey: "muted")
         systemNotifications = defaults.object(forKey: "systemNotifications") as? Bool ?? false
+        notifyCategories = CarapaceDefaults.notifySettings()
         backgroundCheck = defaults.object(forKey: "backgroundCheck") as? Bool ?? true
         showIndexStrip = defaults.object(forKey: "showIndexStrip") as? Bool ?? true
         eastmoneyInterval = defaults.object(forKey: "eastmoneyInterval") as? Double ?? 3
@@ -310,6 +315,8 @@ final class AppState: ObservableObject {
         if newMuted != muted { muted = newMuted }
         let newSystem = defaults.object(forKey: "systemNotifications") as? Bool ?? systemNotifications
         if newSystem != systemNotifications { systemNotifications = newSystem }
+        let newCategories = CarapaceDefaults.notifySettings()
+        if newCategories != notifyCategories { notifyCategories = newCategories }
         let newBackground = defaults.object(forKey: "backgroundCheck") as? Bool ?? backgroundCheck
         if newBackground != backgroundCheck { backgroundCheck = newBackground }
         let newIndex = defaults.object(forKey: "showIndexStrip") as? Bool ?? showIndexStrip
@@ -401,6 +408,15 @@ final class AppState: ObservableObject {
         return trading ? "行情检查 \(clock) · 非交易时间可能为收盘报价" : "已收盘 · 行情检查 \(clock)"
     }
 
+    func notifyEnabled(_ category: NotifyCategory) -> Bool {
+        notifyCategories[category.rawValue] ?? true
+    }
+
+    func notifyBinding(_ category: NotifyCategory) -> Binding<Bool> {
+        Binding(get: { self.notifyEnabled(category) },
+                set: { self.notifyCategories[category.rawValue] = $0 })
+    }
+
     func acknowledge(_ id: String) {
         do { try store.acknowledgeAlert(id: id); load() }
         catch { self.error = error.localizedDescription }
@@ -424,7 +440,7 @@ final class AppState: ObservableObject {
                     let names = missing.isEmpty ? tracked.map(\.position.name) : missing.map(\.position.name)
                     signals.append(AlertSignal(id: "quote:\(source.rawValue)", kind: .quote,
                         title: "\(source.displayName)行情异常：\(names.prefix(2).joined(separator: "、"))",
-                        detail: h.lastError ?? "行情时间可能已过期，请手动刷新"))
+                        detail: h.lastError ?? "行情时间可能已过期，请手动刷新", category: .quote))
                 }
             }
             for row in rows {
@@ -432,14 +448,16 @@ final class AppState: ObservableObject {
                     let id = "hit:\(row.position.id):\(hit.id)"
                     signals.append(AlertSignal(id: id, positionId: row.position.id, kind: .hit,
                         title: "\(row.position.name) 触及\(hit.kind == .buy ? "买入" : "卖出")档 \(Fmt.level(hit.price))",
-                        detail: "现价 \(Fmt.price(quote.price)) · 行情 \(quote.time)"))
+                        detail: "现价 \(Fmt.price(quote.price)) · 行情 \(quote.time)",
+                        category: hit.kind == .stop ? .stop : .hit))
                 }
                 guard let plan = row.plan, let value = plan.nextReview,
                       let date = Dates.parse(value), date < Date() else { continue }
                 let days = max(1, Int(Date().timeIntervalSince(date) / 86_400))
                 signals.append(AlertSignal(id: "review:\(row.position.id):\(value)",
                     positionId: row.position.id, kind: .review,
-                    title: "\(row.position.name) 复盘已到期", detail: "原定 \(value) · 已逾期 \(days) 天"))
+                    title: "\(row.position.name) 复盘已到期", detail: "原定 \(value) · 已逾期 \(days) 天",
+                    category: .review))
             }
             for row in watchRows {
                 let p = row.position
@@ -447,12 +465,13 @@ final class AppState: ObservableObject {
                     let gap = (q.price - wp) / wp * 100
                     signals.append(AlertSignal(id: "watch:\(p.id):\(wp)", positionId: p.id, kind: .watch,
                         title: "观察 · \(p.name) 触及关注价 \(Fmt.level(wp))",
-                        detail: "现价 \(Fmt.price(q.price)) · \(Fmt.signedPct(gap)) · 行情 \(q.time)"))
+                        detail: "现价 \(Fmt.price(q.price)) · \(Fmt.signedPct(gap)) · 行情 \(q.time)",
+                        category: .watch))
                 }
                 if let hit = row.hit, let quote = row.view.quote {
                     signals.append(AlertSignal(id: "hit:\(p.id):\(hit.id)", positionId: p.id, kind: .hit,
                         title: "观察 · \(p.name) 触及计划买点 \(Fmt.level(hit.price))",
-                        detail: "现价 \(Fmt.price(quote.price)) · 行情 \(quote.time)"))
+                        detail: "现价 \(Fmt.price(quote.price)) · 行情 \(quote.time)", category: .hit))
                 }
             }
             for view in portfolio?.views ?? [] {
@@ -460,16 +479,20 @@ final class AppState: ObservableObject {
                 signals.append(AlertSignal(
                     id: "risk:\(view.id)", positionId: view.id, kind: .risk,
                     title: "\(view.position.name) 仓位 \(Fmt.pctInt(weight * 100)) 超过上限 \(Fmt.pctInt(singlePositionLimit * 100))",
-                    detail: "按当前市值计算；可在设置 → 行情与数据里调整上限"))
+                    detail: "按当前市值计算；可在设置 → 行情与数据里调整上限", category: .risk))
             }
             // 只按 id + 标题判断是否需要写库；现价/时间这类高频变化不触发每 3 秒一次写事务。
             let fingerprint = signals
                 .map { "\($0.id)|\($0.title)" }
                 .sorted().joined(separator: "\n")
             if fingerprint != lastAlertFingerprint {
+                // 只在提醒首次出现时写通知：已经读过的提醒在条件持续期间不再重复出现，
+                // 否则「全部已读」会被下一轮刷新立刻覆盖。条件消失后再次触发会当作新提醒。
+                let known = Set(alerts.filter { $0.resolvedAt == nil }.map(\.id))
                 try store.syncAlerts(signals)
                 lastAlertFingerprint = fingerprint
-                for signal in signals {
+                for signal in signals where !known.contains(signal.id)
+                    && CarapaceDefaults.notifyEnabled(signal.category) {
                     try? store.addNotificationIfNeeded(
                         alertId: signal.id, kind: signal.kind.rawValue,
                         title: signal.title, body: signal.detail,
@@ -674,6 +697,8 @@ final class AppState: ObservableObject {
                             && AlertEngine.crossed(previous: previousQuotes[code], current: quote, level: level) {
                             let action = level.kind == .buy ? "买入档"
                                 : level.kind == .sell ? "卖出档" : "停止买入档"
+                            let category: NotifyCategory = level.kind == .stop ? .stop : .hit
+                            guard CarapaceDefaults.notifyEnabled(category) else { continue }
                             NotificationService.shared.send(id: "hit:\(p.id):\(level.id)",
                                 title: "\(prefix)\(p.name) 触及\(p.kind == .watch ? "计划买点" : action) \(Fmt.level(level.price))",
                                 body: level.condition,
@@ -681,7 +706,8 @@ final class AppState: ObservableObject {
                                 critical: level.kind == .stop)
                         }
                     }
-                    if p.kind == .watch, let wp = p.watchPrice, wp > 0 {
+                    if p.kind == .watch, let wp = p.watchPrice, wp > 0,
+                       CarapaceDefaults.notifyEnabled(.watch) {
                         let watchLevel = PlanLevel(id: "watch-\(p.id)", price: wp, kind: .buy,
                                                    quantity: nil, condition: "")
                         if AlertEngine.crossed(previous: previousQuotes[code], current: quote,

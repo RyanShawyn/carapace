@@ -61,7 +61,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                         id: "updated-\(updated)",
                         title: "Carapace 已更新到 \(updated)",
                         body: "数据与设置保持不变。",
-                        enabled: defaults.object(forKey: "systemNotifications") as? Bool ?? false)
+                        enabled: CarapaceDefaults.notifyEnabled(.update)
+                            && (defaults.object(forKey: "systemNotifications") as? Bool ?? false))
                 }
             }
             state.updater.start()

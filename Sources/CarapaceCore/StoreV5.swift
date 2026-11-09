@@ -848,6 +848,18 @@ extension Store {
                             alertId: alertId, delivery: delivery)
     }
 
+    /// 该提醒是否已经有通知记录（无论是否已读）。
+    public func hasNotification(alertId: String) throws -> Bool {
+        try read {
+            let stmt = try prepare("""
+            SELECT 1 FROM notifications WHERE alert_id = ? LIMIT 1
+            """)
+            defer { sqlite3_finalize(stmt) }
+            bind(stmt, 1, alertId)
+            return sqlite3_step(stmt) == SQLITE_ROW
+        }
+    }
+
     public func markNotificationRead(id: Int64) throws {
         try write {
             let stmt = try prepare("UPDATE notifications SET read_at = ? WHERE id = ? AND read_at IS NULL")

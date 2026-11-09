@@ -51,7 +51,8 @@ do {
     check(quoteless.views[0].value == nil && quoteless.totalPnl == nil, "无报价不估值")
     check(quoteless.views[0].nextLevel == nil, "无报价不推荐下一档")
 
-    let signal = AlertSignal(id: "review:1:2026-01-01", kind: .review, title: "到期", detail: "测试")
+    let signal = AlertSignal(id: "review:1:2026-01-01", kind: .review, title: "到期",
+                             detail: "测试", category: .review)
     try store.syncAlerts([signal])
     try store.acknowledgeAlert(id: signal.id)
     try store.syncAlerts([signal])
@@ -155,7 +156,7 @@ do {
     check(try store.position(id: old.id)?.status == .closed, "原清仓行保留")
 
     try store.syncAlerts([AlertSignal(id: "watch:test", kind: .watch,
-                                      title: "观察提醒", detail: "测试")])
+                                      title: "观察提醒", detail: "测试", category: .watch)])
     check(try store.alerts().first?.kind == .watch, "观察提醒可落库")
 
     let hk = try store.addWatch(code: "00700", name: "腾讯控股",
@@ -330,6 +331,8 @@ do {
     check(try store.notifications().count == 1, "同一未读通知不重复写入")
     let notification = try store.notifications().first!
     try store.markNotificationRead(id: notification.id)
+    check(try store.hasNotification(alertId: "n1"), "已读通知仍可查询")
+    check(!(try store.hasNotification(alertId: "n-missing")), "未产生的提醒查不到通知")
     try store.addNotificationIfNeeded(alertId: "n1", kind: "hit", title: "提醒")
     check(try store.notifications().count == 2, "已读后可以再生成提醒")
 } catch { failures.append("0.8.3 fixes: \(error)") }

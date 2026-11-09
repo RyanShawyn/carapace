@@ -33,14 +33,17 @@ public struct AlertSignal: Equatable, Sendable {
     public var kind: AlertKind
     public var title: String
     public var detail: String
+    /// 对应的可关闭通知类别，见 `NotifyCategory`；决定是否写入通知面板和发系统通知。
+    public var category: NotifyCategory
 
     public init(id: String, positionId: Int64? = nil, kind: AlertKind,
-                title: String, detail: String = "") {
+                title: String, detail: String = "", category: NotifyCategory) {
         self.id = id
         self.positionId = positionId
         self.kind = kind
         self.title = title
         self.detail = detail
+        self.category = category
     }
 }
 
