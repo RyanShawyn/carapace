@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(swift build:*)",
+      "Bash(swift run CarapaceCoreTests:*)",
+      "Bash(swift run carapace --selftest:*)",
+      "Bash(swift run carapace:*)",
+      "Bash(swift run carapace-cli:*)",
+      "Bash(./scripts/dev-run.sh:*)",
+      "Bash(./scripts/build-app.sh:*)",
+      "Bash(./scripts/package-dmg.sh:*)",
+      "Bash(./scripts/test-cli.sh:*)",
+      "Bash(carapace:*)"
+    ]
+  }
+}

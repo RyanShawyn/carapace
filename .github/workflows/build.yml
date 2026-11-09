@@ -1,0 +1,42 @@
+name: build
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Build
+        run: swift build
+      - name: Core tests
+        run: swift run CarapaceCoreTests
+      - name: App selftest
+        run: swift run carapace --selftest
+      - name: CLI tests
+        run: ./scripts/test-cli.sh
+      - name: Package smoke
+        run: ./scripts/build-app.sh
+      - name: Privacy check
+        run: |
+          set -e
+          ./scripts/check-privacy.sh
+          for s in 示例持仓 seeded_samples; do
+            if grep -aq "$s" build/Carapace.app/Contents/MacOS/carapace; then
+              echo "PRIVACY HIT: $s"
+              exit 1
+            fi
+          done
+      - name: Version consistency
+        run: |
+          set -e
+          V=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" Resources/Info.plist)
+          grep -q "$V" README.md
+          grep -q "$V" README.en.md
+          grep -q "$V" README.ja.md
+          grep -q "$V" skills/carapace/references/json-schemas.md
