@@ -173,10 +173,12 @@ final class StatusController: NSObject, NSPopoverDelegate {
 enum MenuGlyph {
     static func image(for name: String, color: NSColor? = nil) -> NSImage {
         let ink = color ?? .black
+        // 22×18 画布 → 22×22 图像；1.07 再把字形放大一点，整体平移保持居中。
+        let k = 22.0 / 18.0 * 1.07
+        let offset = 11.0 - 9.0 * k
         let img = NSImage(size: NSSize(width: 22, height: 22), flipped: false) { _ in
-            let scale = NSAffineTransform()
-            scale.scale(by: 22.0 / 18.0)
-            scale.concat()
+            NSGraphicsContext.current?.cgContext.concatenate(
+                CGAffineTransform(a: k, b: 0, c: 0, d: k, tx: offset, ty: offset))
             ink.setFill()
             ink.setStroke()
 
@@ -201,7 +203,7 @@ enum MenuGlyph {
             case "turtle.trigger":
                 // 空心壳 + 右上角圆点，表示有价位触发未确认。
                 shell.stroke()
-                NSBezierPath(ovalIn: NSRect(x: 12.9, y: 12.4, width: 4.6, height: 4.6)).fill()
+                NSBezierPath(ovalIn: NSRect(x: 12.6, y: 12.4, width: 4.6, height: 4.6)).fill()
             case "turtle.watch":
                 // 观察提醒：空心壳 + 壳内小三角，和持仓触发区分。
                 shell.stroke()
