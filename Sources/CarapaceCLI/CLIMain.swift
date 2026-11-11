@@ -46,7 +46,7 @@ struct CarapaceCLI {
           portfolio                      组合总览
           positions list|get|add|correct|clear|changes
           trades   record|list
-          plans    get|update
+          plans    get|update|remove
           drafts   list|create|apply|discard
           watch    list|add|update|remove|convert|carry
           import   preview|commit|rollback|batches|executions

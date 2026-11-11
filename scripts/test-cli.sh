@@ -98,6 +98,18 @@ OUT="$("$BIN" drafts apply --id "$DID" --yes --json)"
 expect_ok "$OUT"
 expect_json "$OUT" "data.plan.version" "$((VERSION + 1))"
 
+echo "== remove plan"
+set +e
+OUT="$("$BIN" plans remove --position "$PID" --json 2>&1)"
+STATUS=$?
+set -e
+[ "$STATUS" -eq 2 ] || fail "plans remove 缺 --yes 应退出 2，实际 $STATUS"
+OUT="$("$BIN" plans remove --position "$PID" --yes --json)"
+expect_ok "$OUT"
+expect_json "$OUT" "data.removed" "True"
+OUT="$("$BIN" plans get --position "$PID" --json || true)"
+expect_json "$OUT" "error.code" "NOT_FOUND"
+
 echo "== reviews and memories"
 OUT="$("$BIN" reviews create --position "$PID" --kind plan --due 2026-12-01 --json)"
 expect_ok "$OUT"

@@ -313,8 +313,20 @@ private func plans(args: CLIArgs, store: Store) throws -> Any {
                                               note: note, author: "agent", ifVersion: ifVersion)
             return ["plan": planDict(result.plan), "diff": jsonable(result.diff)]
         })
+    case "remove":
+        try args.requireYes("移除计划")
+        return try performWrite(args: args, store: store, command: "plans.remove", preview: {
+            guard let plan = try store.plan(positionId: positionId) else {
+                throw CLIError.notFound("该标的还没有计划")
+            }
+            return ["positionId": positionId, "planVersion": plan.version,
+                    "levels": plan.levels.count]
+        }, body: {
+            let plan = try store.removePlan(positionId: positionId, note: args.value("note"))
+            return ["positionId": positionId, "removed": true, "planVersion": plan.version]
+        })
     default:
-        throw CLIError.usage("plans 需要 get|update")
+        throw CLIError.usage("plans 需要 get|update|remove")
     }
 }
 

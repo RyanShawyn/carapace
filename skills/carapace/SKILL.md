@@ -20,8 +20,8 @@ description: 通过 carapace CLI 操作本机 Carapace 持仓应用：查询持�
 - 只通过 CLI 读写；不要直接打开 SQLite，不读 Keychain，不读原始数据库文件。
 - 结论只引用 JSON 返回值，不编造价格、数量、日期；回答第一行给结论，并带上 `meta.as_of` 和数据来源。
 - 写操作先加 `--dry-run`，再用中文复述将发生的变更；用户确认后才执行。
-- 清仓、删除观察、导入提交、回滚、修改计划、应用草稿必须等用户明确说「确认」。
-- CLI 自身还要求破坏性操作带 `--yes`：`positions clear`、`watch remove`、`import commit`、
+- 清仓、删除观察、移除计划、导入提交、回滚、修改计划、应用草稿必须等用户明确说「确认」。
+- CLI 自身还要求破坏性操作带 `--yes`：`positions clear`、`watch remove`、`plans remove`、`import commit`、
   `import rollback`、`drafts apply`、`maintenance purge-ai-keys`。这些命令即使 `--dry-run`
   预览也必须带 `--yes`；`--dry-run` 保证不写入。用户确认针对的是去掉 `--dry-run` 的正式执行，
   不要把预览命令里的 `--yes` 当作用户已确认。

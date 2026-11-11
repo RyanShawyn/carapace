@@ -190,6 +190,8 @@ struct OverviewView: View {
 
 struct PositionsView: View {
     @ObservedObject var state: AppState
+    @State private var confirmRemoveWatch = false
+    @State private var removingWatchId: Int64?
 
     var body: some View {
         if state.showPositionDetail, let id = state.selectedPositionId {
@@ -286,6 +288,20 @@ struct PositionsView: View {
                     .font(.system(size: 10.5)).foregroundStyle(Theme.muted)
             }
         }
+        .alert("移除这个观察标的？", isPresented: $confirmRemoveWatch) {
+            Button("取消", role: .cancel) { removingWatchId = nil }
+            Button("移除", role: .destructive) {
+                if let id = removingWatchId {
+                    do {
+                        try state.removeWatch(id: id)
+                        state.toastText = "已移除观察"
+                    } catch { state.toastText = error.localizedDescription }
+                }
+                removingWatchId = nil
+            }
+        } message: {
+            Text("观察备注、计划和指标会一起删除，已记录的复盘会保留。")
+        }
     }
 
     private func watchStat(_ title: String, _ value: String, _ detail: String,
@@ -356,6 +372,17 @@ struct PositionsView: View {
                 .background(hot ? Theme.amber.opacity(0.06) : Color.clear)
                 .contentShape(Rectangle())
                 .onTapGesture { state.selectPosition(p.id) }
+                .contextMenu {
+                    Button("在 Carapace 中打开") { state.selectPosition(p.id) }
+                    Button("编辑观察…") { state.activeSheet = .watchEditor(p.id) }
+                    Button("转为持仓…") { state.activeSheet = .convertWatch(p.id) }
+                        .disabled(!p.market.isHoldable)
+                    Divider()
+                    Button("移除观察…", role: .destructive) {
+                        removingWatchId = p.id
+                        confirmRemoveWatch = true
+                    }
+                }
                 Divider()
             }
         }
@@ -500,7 +527,14 @@ struct OverviewPositionTable: View {
                     .font(.system(size: 11.5)).monospacedDigit()
                     .padding(.horizontal, 12).padding(.vertical, 8)
                     .contentShape(Rectangle())
-                }.buttonStyle(.plain)
+                }
+                .buttonStyle(.plain)
+                .contextMenu {
+                    Button("在 Carapace 中打开") { state.selectPosition(row.id) }
+                    Button("记一笔…") { state.activeSheet = .trade(row.id) }
+                    Button("编辑持仓…") { state.activeSheet = .editPosition(row.id) }
+                    Button("清仓…") { state.activeSheet = .clear(row.id) }
+                }
                 Divider()
             }
         }
@@ -512,6 +546,8 @@ struct OverviewPositionTable: View {
 
 struct OverviewWatchTable: View {
     @ObservedObject var state: AppState
+    @State private var confirmRemoveWatch = false
+    @State private var removingId: Int64?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -559,6 +595,17 @@ struct OverviewWatchTable: View {
                 .background(hot ? Theme.amber.opacity(0.06) : Color.clear)
                 .contentShape(Rectangle())
                 .onTapGesture { state.selectPosition(p.id) }
+                .contextMenu {
+                    Button("在 Carapace 中打开") { state.selectPosition(p.id) }
+                    Button("编辑观察…") { state.activeSheet = .watchEditor(p.id) }
+                    Button("转为持仓…") { state.activeSheet = .convertWatch(p.id) }
+                        .disabled(!p.market.isHoldable)
+                    Divider()
+                    Button("移除观察…", role: .destructive) {
+                        removingId = p.id
+                        confirmRemoveWatch = true
+                    }
+                }
                 Divider()
             }
 
@@ -578,6 +625,20 @@ struct OverviewWatchTable: View {
         .background(Theme.card)
         .clipShape(RoundedRectangle(cornerRadius: 10))
         .overlay(RoundedRectangle(cornerRadius: 10).stroke(Theme.line, lineWidth: 1))
+        .alert("移除这个观察标的？", isPresented: $confirmRemoveWatch) {
+            Button("取消", role: .cancel) { removingId = nil }
+            Button("移除", role: .destructive) {
+                if let id = removingId {
+                    do {
+                        try state.removeWatch(id: id)
+                        state.toastText = "已移除观察"
+                    } catch { state.toastText = error.localizedDescription }
+                }
+                removingId = nil
+            }
+        } message: {
+            Text("观察备注、计划和指标会一起删除，已记录的复盘会保留。")
+        }
     }
 }
 
@@ -585,6 +646,7 @@ struct PositionDetailView: View {
     @ObservedObject var state: AppState
     let positionId: Int64
     @State private var confirmRemoveWatch = false
+    @State private var confirmRemovePlan = false
 
     var body: some View {
         let p = state.anyPosition(id: positionId)
@@ -631,6 +693,17 @@ struct PositionDetailView: View {
             }
         } message: {
             Text("观察备注、计划和指标会一起删除，已记录的复盘会保留。")
+        }
+        .alert("移除这个计划？", isPresented: $confirmRemovePlan) {
+            Button("取消", role: .cancel) {}
+            Button("移除", role: .destructive) {
+                do {
+                    try state.removePlan(positionId: positionId)
+                    state.toastText = "计划已移除"
+                } catch { state.toastText = error.localizedDescription }
+            }
+        } message: {
+            Text("只删除计划档位，持仓或观察标的本身保留；移除记录会写入流水。")
         }
     }
 
@@ -742,6 +815,10 @@ struct PositionDetailView: View {
                         .controlSize(.small)
                     Button("手写/编辑") { state.activeSheet = .editPlan(p.id) }
                         .controlSize(.small)
+                    if plan != nil {
+                        Button("移除计划") { confirmRemovePlan = true }
+                            .controlSize(.small).foregroundStyle(Theme.up)
+                    }
                 }.padding(.bottom, 8)
                 if let description = plan?.description, !description.isEmpty {
                     Text(description)

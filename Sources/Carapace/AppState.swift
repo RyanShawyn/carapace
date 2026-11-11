@@ -923,6 +923,11 @@ final class AppState: ObservableObject {
         afterWrite(); return r
     }
 
+    func removePlan(positionId: Int64) throws {
+        _ = try store.removePlan(positionId: positionId, note: "手动移除")
+        afterWrite()
+    }
+
     private func afterWrite() { load() }
     private static func clock(_ date: Date) -> String {
         let f = DateFormatter(); f.locale = Locale(identifier: "en_US_POSIX")

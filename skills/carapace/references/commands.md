@@ -76,10 +76,12 @@ carapace trades list --type buy --limit 100 --json
 carapace plans get --position 12 --json
 carapace plans update --position 12 --levels-file /tmp/levels.json \
   --if-version 3 --note "复核后调整" --json
+carapace plans remove --position 12 --yes --json
 ```
 
 `plans update` 还支持 `--description`、`--next-review`。修改已有计划必须带 `--if-version`；
 不带会返回 VALIDATION。`plans get` 的顶层还会返回 `executedLevels`。
+`plans remove` 只删除计划，不动持仓或观察；删除动作会写进 `changes`，带原计划快照。
 
 `levels.json` 可以是数组：
 

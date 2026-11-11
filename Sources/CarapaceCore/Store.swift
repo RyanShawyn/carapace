@@ -845,6 +845,40 @@ public final class Store: @unchecked Sendable {
         }
     }
 
+    /// 移除计划：删除计划行，并在 changes 里留一条带原快照的记录。
+    @discardableResult
+    public func removePlan(positionId: Int64, note: String? = nil) throws -> Plan {
+        return try write {
+            guard let pos = try position(id: positionId) else {
+                throw StoreError.notFound("持仓不存在")
+            }
+            guard pos.status == .open else {
+                throw StoreError.validation("已清仓的持仓不能移除计划")
+            }
+            guard let current = try plan(positionId: positionId) else {
+                throw StoreError.notFound("该标的还没有计划")
+            }
+
+            let snapshot = PlanSnapshot(version: current.version, author: current.author,
+                                        description: current.description,
+                                        nextReview: current.nextReview,
+                                        levels: current.levels)
+            let stmt = try prepare("DELETE FROM plans WHERE position_id = ?")
+            sqlite3_bind_int64(stmt, 1, positionId)
+            try stepDone(stmt)
+            sqlite3_finalize(stmt)
+
+            _ = try insertChange(positionId: positionId, type: .plan,
+                                 qtyBefore: nil, qtyAfter: nil,
+                                 costBefore: nil, costAfter: nil, price: nil, fee: nil,
+                                 levelPrice: nil, levelId: nil, planVersion: current.version,
+                                 direction: nil, planSnapshot: encode(snapshot),
+                                 note: note ?? "移除计划 v\(current.version)",
+                                 occurredAt: Dates.today())
+            return current
+        }
+    }
+
     // MARK: - Alerts
 
     public func alerts(includeResolved: Bool = false, limit: Int = 200) throws -> [Alert] {

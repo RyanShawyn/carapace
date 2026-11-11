@@ -53,6 +53,13 @@ carapace trades record --position 12 --side buy --quantity 100 --price 10 \
   用户明确说「确认」后才去掉 `--dry-run`。
 - 清仓后想保留观察：`watch carry --id 12 --watch-price 12`；先 `--dry-run` 再执行。
 
+## 移除观察 / 移除计划
+
+- 股票没有硬删除，移除就是清仓：`positions clear`；清仓后仍想追踪再 `watch carry`。
+- 观察标的是硬删除：`watch remove --id 3`，会一并删除它的计划、指标和提醒，已记录的复盘保留。
+- 计划只删计划本身，不动持仓：`plans remove --position 12`。两者都先 `--dry-run` 并带 `--yes`，
+  用户明确说「确认」后才去掉 `--dry-run`。
+
 ## 计划复核
 
 1. 读取：
