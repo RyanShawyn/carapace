@@ -15,6 +15,7 @@ struct SettingsViewV5: View {
                 .pickerStyle(.segmented).padding(.bottom, 12)
 
                 switch state.settingsTab {
+                case .general: GeneralSettingsView(state: state)
                 case .automation: AutomationSettingsView(state: state)
                 case .notify: NotificationSettingsView(state: state)
                 case .data: DataSettingsView(state: state)
@@ -25,6 +26,30 @@ struct SettingsViewV5: View {
             .padding(20)
         }
         .background(Theme.panel)
+    }
+}
+
+struct GeneralSettingsView: View {
+    @ObservedObject var state: AppState
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            CardBox {
+                VStack(alignment: .leading, spacing: 9) {
+                    Toggle("在菜单栏显示图标", isOn: Binding(
+                        get: { state.showMenuBarIcon },
+                        set: { visible in
+                            state.showMenuBarIcon = visible
+                            if !visible {
+                                state.toastText = "菜单栏图标已隐藏；可在 App 菜单或 设置 → 通用 恢复"
+                            }
+                        }))
+                    Text("隐藏后菜单栏不再显示乌龟；持仓提醒仍会写入通知列表并弹系统通知。恢复方式：主窗口「Carapace」菜单 → 显示菜单栏图标，或启动 App 时按住 Option。")
+                        .font(.system(size: 10)).foregroundStyle(Theme.faint)
+                        .fixedSize(horizontal: false, vertical: true)
+                }.font(.system(size: 11.5))
+            }
+        }
     }
 }
 

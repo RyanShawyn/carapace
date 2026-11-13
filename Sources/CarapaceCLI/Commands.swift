@@ -854,7 +854,7 @@ private func search(args: CLIArgs) async throws -> Any {
 // MARK: - Settings and maintenance
 
 private let settingKeys: Set<String> = [
-    "hkdRate", "cmbSpread", "showIndexStrip", "eastmoneyInterval",
+    "hkdRate", "cmbSpread", "showIndexStrip", "showMenuBarIcon", "eastmoneyInterval",
     "sinaInterval", "backgroundCheck", "backgroundMinutes", "muted", "systemNotifications",
     "autoReview", "quietHours", "singlePositionLimit",
     "autoCheck", "autoUpdate", "relaunchAfterUpdate"
@@ -877,7 +877,7 @@ private func settings(args: CLIArgs) throws -> Any {
         let key = try args.require("key")
         guard settingKeys.contains(key) else { throw CLIError.usage("未知设置项：\(key)") }
         let raw = try args.require("value")
-        if ["showIndexStrip", "backgroundCheck", "muted", "systemNotifications",
+        if ["showIndexStrip", "showMenuBarIcon", "backgroundCheck", "muted", "systemNotifications",
             "autoReview", "quietHours", "autoCheck", "autoUpdate",
             "relaunchAfterUpdate"].contains(key) {
             guard let value = Bool(raw) else { throw CLIError.validation("\(key) 必须是 true 或 false") }

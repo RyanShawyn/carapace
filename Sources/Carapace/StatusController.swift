@@ -6,7 +6,8 @@ import CarapaceCore
 @MainActor
 final class StatusController: NSObject, NSPopoverDelegate {
     private let state: AppState
-    private let item: NSStatusItem
+    /// 菜单栏图标可以隐藏；隐藏时置空，重新显示时新建。
+    private var item: NSStatusItem?
     private let popover = NSPopover()
     private var hosting: NSHostingController<PanelView>!
     private var cancellables = Set<AnyCancellable>()
@@ -23,14 +24,7 @@ final class StatusController: NSObject, NSPopoverDelegate {
         self.openApp = openApp
         self.openPosition = openPosition
         self.openWatchSheet = openWatchSheet
-        item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         super.init()
-
-        if let button = item.button {
-            button.target = self
-            button.action = #selector(clicked)
-            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
-        }
 
         hosting = NSHostingController(rootView: PanelView(
             state: state,
@@ -63,18 +57,43 @@ final class StatusController: NSObject, NSPopoverDelegate {
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in self?.resize() }
             .store(in: &cancellables)
+        state.$showMenuBarIcon
+            .receive(on: RunLoop.main)
+            .sink { [weak self] visible in self?.setMenuBarVisible(visible) }
+            .store(in: &cancellables)
         DistributedNotificationCenter.default.addObserver(
             self, selector: #selector(appearanceChanged),
             name: NSNotification.Name("AppleInterfaceThemeChangedNotification"), object: nil)
 
-        updateIcon()
+        setMenuBarVisible(state.showMenuBarIcon)
+    }
+
+    /// 按偏好增删状态栏项；隐藏时先收起面板，避免留下无锚点的浮窗。
+    private func setMenuBarVisible(_ visible: Bool) {
+        if visible {
+            guard item == nil else { updateIcon(); return }
+            let newItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+            item = newItem
+            if let button = newItem.button {
+                button.target = self
+                button.action = #selector(clicked)
+                button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+            }
+            updateIcon()
+        } else {
+            guard let current = item else { return }
+            if popover.isShown { popover.performClose(nil) }
+            NSStatusBar.system.removeStatusItem(current)
+            item = nil
+        }
     }
 
     private func updateIcon() {
+        guard let button = item?.button else { return }
         let glyph = state.iconName
-        item.button?.image = MenuGlyph.image(for: glyph, color: color(for: glyph))
-        item.button?.toolTip = state.iconTooltip
-        item.button?.setAccessibilityLabel("Carapace")
+        button.image = MenuGlyph.image(for: glyph, color: color(for: glyph))
+        button.toolTip = state.iconTooltip
+        button.setAccessibilityLabel("Carapace")
     }
 
     private func color(for glyph: String) -> NSColor? {
@@ -116,14 +135,14 @@ final class StatusController: NSObject, NSPopoverDelegate {
 
     /// 收起面板后再执行跳转动作（打开主窗口 / 定位持仓）。
     private func dismiss(_ action: @escaping () -> Void) {
-        item.button?.highlight(false)
+        item?.button?.highlight(false)
         guard popover.isShown else { action(); return }
         popover.performClose(nil)
         DispatchQueue.main.async { action() }
     }
 
     func showPanel() {
-        guard !popover.isShown, let button = item.button else { return }
+        guard !popover.isShown, let button = item?.button else { return }
         NSApp.activate(ignoringOtherApps: true)
         if popover.isShown { return }
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
@@ -135,11 +154,12 @@ final class StatusController: NSObject, NSPopoverDelegate {
     }
 
     func popoverDidClose(_ notification: Notification) {
-        item.button?.highlight(false)
+        item?.button?.highlight(false)
         state.stopLive()
     }
 
     private func showMenu() {
+        guard let statusItem = item else { return }
         let menu = NSMenu()
         menu.addItem(item("打开 Carapace", #selector(menuOpen)))
         let version = NSMenuItem(title: "Carapace \(AppVersion.short)", action: nil, keyEquivalent: "")
@@ -148,9 +168,9 @@ final class StatusController: NSObject, NSPopoverDelegate {
         menu.addItem(item("检查更新…", #selector(menuCheckUpdates)))
         menu.addItem(.separator())
         menu.addItem(item("退出 Carapace", #selector(menuQuit)))
-        item.menu = menu
-        item.button?.performClick(nil)
-        item.menu = nil
+        statusItem.menu = menu
+        statusItem.button?.performClick(nil)
+        statusItem.menu = nil
     }
 
     private func item(_ title: String, _ action: Selector) -> NSMenuItem {

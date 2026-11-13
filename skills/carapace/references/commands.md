@@ -239,6 +239,7 @@ carapace settings set --key hkdRate --value 0.86 --json
 carapace settings set --key autoReview --value true --json
 carapace settings set --key quietHours --value true --json
 carapace settings set --key singlePositionLimit --value 0.2 --json
+carapace settings set --key showMenuBarIcon --value true --json
 
 carapace backup --to /tmp/carapace-backup.sqlite3 --json
 carapace verify --json

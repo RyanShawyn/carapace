@@ -18,6 +18,11 @@ public enum CarapaceDefaults {
         store.object(forKey: "cmbSpread") as? Double ?? 5
     }
 
+    /// 菜单栏乌龟图标开关；缺省显示。隐藏后可从主窗口菜单或设置恢复。
+    public static var showMenuBarIcon: Bool {
+        store.object(forKey: "showMenuBarIcon") as? Bool ?? true
+    }
+
     /// 分类通知开关；未设置过时一律视为开启，保持旧行为。
     public static func notifyEnabled(_ category: NotifyCategory) -> Bool {
         notifySettings()[category.rawValue] ?? true

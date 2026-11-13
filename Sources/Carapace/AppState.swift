@@ -83,10 +83,11 @@ enum ReviewTab: String, CaseIterable, Identifiable {
 }
 
 enum SettingsTab: String, CaseIterable, Identifiable {
-    case automation, notify, data, update, about
+    case general, automation, notify, data, update, about
     var id: String { rawValue }
     var title: String {
         switch self {
+        case .general: return "通用"
         case .automation: return "自动化"
         case .notify: return "通知"
         case .data: return "行情与数据"
@@ -144,6 +145,10 @@ final class AppState: ObservableObject {
     /// 菜单栏指数条开关；隐藏后不再占用面板高度，行情仍会缓存。
     @Published var showIndexStrip: Bool {
         didSet { CarapaceDefaults.store.set(showIndexStrip, forKey: "showIndexStrip") }
+    }
+    /// 菜单栏乌龟图标开关；隐藏后从主窗口菜单或设置恢复。
+    @Published var showMenuBarIcon: Bool {
+        didSet { CarapaceDefaults.store.set(showMenuBarIcon, forKey: "showMenuBarIcon") }
     }
     @Published var eastmoneyInterval: TimeInterval {
         didSet { CarapaceDefaults.store.set(eastmoneyInterval, forKey: "eastmoneyInterval") }
@@ -280,6 +285,7 @@ final class AppState: ObservableObject {
         notifyCategories = CarapaceDefaults.notifySettings()
         backgroundCheck = defaults.object(forKey: "backgroundCheck") as? Bool ?? true
         showIndexStrip = defaults.object(forKey: "showIndexStrip") as? Bool ?? true
+        showMenuBarIcon = CarapaceDefaults.showMenuBarIcon
         eastmoneyInterval = defaults.object(forKey: "eastmoneyInterval") as? Double ?? 3
         sinaInterval = defaults.object(forKey: "sinaInterval") as? Double ?? 10
         backgroundMinutes = defaults.object(forKey: "backgroundMinutes") as? Double ?? 5
@@ -321,6 +327,8 @@ final class AppState: ObservableObject {
         if newBackground != backgroundCheck { backgroundCheck = newBackground }
         let newIndex = defaults.object(forKey: "showIndexStrip") as? Bool ?? showIndexStrip
         if newIndex != showIndexStrip { showIndexStrip = newIndex }
+        let newMenuBarIcon = CarapaceDefaults.showMenuBarIcon
+        if newMenuBarIcon != showMenuBarIcon { showMenuBarIcon = newMenuBarIcon }
         let newEast = defaults.object(forKey: "eastmoneyInterval") as? Double ?? eastmoneyInterval
         if newEast != eastmoneyInterval { eastmoneyInterval = newEast }
         let newSina = defaults.object(forKey: "sinaInterval") as? Double ?? sinaInterval

@@ -2,7 +2,7 @@ import AppKit
 import CarapaceCore
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var state: AppState?
     private var status: StatusController?
     private var mainWindow: MainWindowController?
@@ -11,6 +11,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         do {
             NSApp.setActivationPolicy(.regular)
             installMainMenu()
+            // 兜底：启动时按住 Option 强制显示菜单栏图标，防止隐藏后找不到入口。
+            if NSEvent.modifierFlags.contains(.option) {
+                CarapaceDefaults.store.set(true, forKey: "showMenuBarIcon")
+            }
             let state = try AppState()
             self.state = state
             if let raw = ProcessInfo.processInfo.environment["CARAPACE_SECTION"],
@@ -106,6 +110,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         state?.updater.check(manual: true)
     }
 
+    @objc private func toggleMenuBarIcon() {
+        guard let state else { return }
+        state.showMenuBarIcon.toggle()
+        if !state.showMenuBarIcon {
+            state.toastText = "菜单栏图标已隐藏；可在 App 菜单或 设置 → 通用 恢复"
+        }
+    }
+
+    func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        if menuItem.action == #selector(toggleMenuBarIcon) {
+            menuItem.state = (state?.showMenuBarIcon ?? true) ? .on : .off
+        }
+        return true
+    }
+
     @objc private func openSettings() { mainWindow?.show(section: .settings) }
     @objc private func openOverview() { mainWindow?.show(section: .overview) }
     @objc private func openPositions() { mainWindow?.show(section: .positions) }
@@ -156,6 +175,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.servicesMenu = servicesMenu
 
         appMenu.addItem(.separator())
+        appMenu.addItem(menuItem("显示菜单栏图标", #selector(toggleMenuBarIcon)))
         appMenu.addItem(withTitle: "隐藏 Carapace",
                         action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
         let hideOthers = NSMenuItem(title: "隐藏其他",

@@ -9,16 +9,25 @@ rm -rf "$APP"
 
 # 优先用 xcbuild 一次产出通用二进制；只有 Command Line Tools 时分别编译再 lipo。
 if swift build -c release --arch arm64 --arch x86_64 2>/dev/null; then
-  BIN=".build/apple/Products/Release/carapace"
-  BIN_CLI=".build/apple/Products/Release/carapace-cli"
+  # 新版 SwiftPM 产在 .build/out/Products/Release，旧版在 .build/apple/Products/Release。
+  for dir in .build/apple/Products/Release .build/out/Products/Release; do
+    if [ -x "$dir/carapace" ] && [ -x "$dir/carapace-cli" ]; then
+      BIN="$dir/carapace"
+      BIN_CLI="$dir/carapace-cli"
+      break
+    fi
+  done
+  [ -n "${BIN:-}" ] || { echo "未找到 universal 产物" >&2; exit 1; }
 else
   swift build -c release --arch arm64 --scratch-path .build/arm64
   swift build -c release --arch x86_64 --scratch-path .build/x86
+  ARM_BIN="$(find .build/arm64 -path "*/release/carapace" -type f | head -1)"
+  ARM_CLI="$(find .build/arm64 -path "*/release/carapace-cli" -type f | head -1)"
+  X86_BIN="$(find .build/x86 -path "*/release/carapace" -type f | head -1)"
+  X86_CLI="$(find .build/x86 -path "*/release/carapace-cli" -type f | head -1)"
   mkdir -p .build/universal
-  lipo -create .build/arm64/release/carapace .build/x86/release/carapace \
-    -output .build/universal/carapace
-  lipo -create .build/arm64/release/carapace-cli .build/x86/release/carapace-cli \
-    -output .build/universal/carapace-cli
+  lipo -create "$ARM_BIN" "$X86_BIN" -output .build/universal/carapace
+  lipo -create "$ARM_CLI" "$X86_CLI" -output .build/universal/carapace-cli
   BIN=".build/universal/carapace"
   BIN_CLI=".build/universal/carapace-cli"
 fi
